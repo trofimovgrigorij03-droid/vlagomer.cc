@@ -1,0 +1,25 @@
+project.yml
+name: Vlagomer
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  Vlagomer:
+    type: application
+    platform: iOS
+    sources: [Vlagomer]
+    info:
+      path: Vlagomer/Info.plist
+      properties:
+        CFBundleDisplayName: Влагомер
+        NSBluetoothAlwaysUsageDescription: Подключение к влагомеру по Bluetooth
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.vlagomer
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
