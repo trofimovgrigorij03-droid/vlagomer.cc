@@ -1,24 +1,41 @@
-name: Vlagomer
-options:
-  bundleIdPrefix: com.example
-  deploymentTarget:
-    iOS: "17.0"
-targets:
-  Vlagomer:
-    type: application
-    platform: iOS
-    sources: [Vlagomer]
-    info:
-      path: Vlagomer/Info.plist
-      properties:
-        CFBundleDisplayName: Влагомер
-        NSBluetoothAlwaysUsageDescription: Подключение к влагомеру по Bluetooth
-        UILaunchScreen: {}
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.vlagomer
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
-        SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
+name: Build IPA
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find project.yml
+        run: |
+          echo "Файлы в репозитории:"
+          find . -not -path './.git/*' -type f
+          FOUND=$(find . -name project.yml -not -path './.git/*' | head -n1)
+          if [ -z "$FOUND" ]; then
+            echo "ОШИБКА: project.yml не найден в репозитории"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$FOUND")" >> $GITHUB_ENV
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: xcodegen generate
+      - name: Build (unsigned)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          xcodebuild -project Vlagomer.xcodeproj -scheme Vlagomer \
+            -configuration Release -sdk iphoneos -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+      - name: Package IPA
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Vlagomer.app Payload/
+          zip -r Vlagomer.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vlagomer-ipa
+          path: ${{ env.PROJECT_DIR }}/Vlagomer.ipa
