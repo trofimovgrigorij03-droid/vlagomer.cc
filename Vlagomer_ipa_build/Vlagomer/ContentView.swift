@@ -58,6 +58,28 @@ struct ContentView: View {
                 .background(statusColor.opacity(0.18), in: Capsule())
                 .foregroundStyle(statusColor)
 
+            // Кнопка замера
+            VStack(spacing: 6) {
+                Button {
+                    ble.startMeasurement()
+                } label: {
+                    HStack(spacing: 10) {
+                        if ble.isMeasuring { ProgressView().tint(.white) }
+                        Text(ble.isMeasuring ? "Идёт замер…" : "Замерить")
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!ble.canMeasure)
+
+                if ble.connection == .connected && !ble.supportsMeasure {
+                    Text("Для кнопки замера обновите прошивку прибора")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
             // Температура
             HStack {
                 Image(systemName: "thermometer.medium")
