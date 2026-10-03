@@ -87,7 +87,7 @@ struct ContentView: View {
                 VStack(alignment: .leading) {
                     Text("Температура древесины")
                         .font(.caption).foregroundStyle(.secondary)
-                    Text(String(format: "%.1f °C", ble.temperature))
+                    Text(ble.temperature < -100 ? "нет датчика" : String(format: "%.1f °C", ble.temperature))
                         .font(.title2.weight(.semibold)).monospacedDigit()
                 }
                 Spacer()
