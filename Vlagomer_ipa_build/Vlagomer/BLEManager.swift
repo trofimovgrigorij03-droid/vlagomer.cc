@@ -55,6 +55,8 @@ final class BLEManager: NSObject, ObservableObject {
     @Published var hasResult = false
     @Published var isMeasuring = false
     @Published var supportsMeasure = false
+    @Published var isHolding = false      // авто-зажим включён
+    @Published var supportsHold = false   // прошивка умеет авто-зажим (v1.6+)
     @Published var connection: ConnectionState = .scanning
 
     private var central: CBCentralManager!
@@ -62,7 +64,8 @@ final class BLEManager: NSObject, ObservableObject {
     private var woodChar: CBCharacteristic?
     private var cmdChar: CBCharacteristic?
 
-    var canMeasure: Bool { connection == .connected && supportsMeasure && !isMeasuring }
+    var canMeasure: Bool { connection == .connected && supportsMeasure && !isMeasuring && !isHolding }
+    var canHold: Bool { connection == .connected && supportsMeasure && supportsHold }
 
     override init() {
         super.init()
@@ -88,6 +91,19 @@ final class BLEManager: NSObject, ObservableObject {
         p.writeValue(Data([1]), for: c, type: .withResponse)
     }
 
+    /// Авто-зажим: прибор непрерывно измеряет, пока не нажмёшь «Отпустить»; после этого результат фиксируется
+    func toggleHold() {
+        guard let p = peripheral, let c = cmdChar else { return }
+        if isHolding {
+            isHolding = false
+            p.writeValue(Data([0]), for: c, type: .withResponse)
+        } else {
+            isHolding = true
+            isMeasuring = true
+            p.writeValue(Data([2]), for: c, type: .withResponse)
+        }
+    }
+
     private func parse(_ data: Data) {
         guard let text = String(data: data, encoding: .utf8) else { return }
         let parts = text.split(separator: ",").map(String.init)
@@ -100,6 +116,10 @@ final class BLEManager: NSObject, ObservableObject {
         status = MoistureStatus(rawValue: s) ?? .idle
         hasResult = (r == 1)
         isMeasuring = parts.count >= 6 && parts[5] == "1"
+        if parts.count >= 7 {
+            supportsHold = true
+            isHolding = parts[6] == "1"
+        }
     }
 }
 
@@ -125,6 +145,8 @@ extension BLEManager: CBCentralManagerDelegate {
         woodChar = nil
         cmdChar = nil
         supportsMeasure = false
+        supportsHold = false
+        isHolding = false
         isMeasuring = false
         hasResult = false
         status = .idle
