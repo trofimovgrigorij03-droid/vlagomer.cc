@@ -18,13 +18,20 @@ struct ContentView: View {
             // Состояние подключения
             HStack(spacing: 8) {
                 Circle()
-                    .fill(ble.connection == .connected ? Color.green : Color.orange)
+                    .fill(ble.connection == .connected ? Color.green
+                          : (ble.connection == .disconnected ? Color.gray : Color.orange))
                     .frame(width: 10, height: 10)
                 Text(ble.connection.title)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Spacer()
-                if ble.connection != .connected {
+                if ble.connection == .connected {
+                    Button("Отключиться") { ble.disconnect() }
+                        .font(.subheadline)
+                } else if ble.connection == .disconnected {
+                    Button("Подключиться") { ble.startScan() }
+                        .font(.subheadline)
+                } else {
                     Button("Повторить") { ble.startScan() }
                         .font(.subheadline)
                 }
