@@ -74,8 +74,30 @@ struct ContentView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!ble.canMeasure)
 
-                if ble.connection == .connected && !ble.supportsMeasure {
-                    Text("Для кнопки замера обновите прошивку прибора")
+                // Авто-зажим: непрерывный замер, пока не нажмёшь «Отпустить»
+                Button {
+                    ble.toggleHold()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: ble.isHolding ? "hand.raised.slash.fill" : "hand.tap.fill")
+                        Text(ble.isHolding ? "Отпустить" : "Авто-зажим")
+                    }
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(ble.isHolding ? .red : .accentColor)
+                .disabled(!ble.canHold)
+
+                if ble.isHolding {
+                    Text("Идёт непрерывный замер. Нажмите «Отпустить», чтобы зафиксировать результат")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                if ble.connection == .connected && (!ble.supportsMeasure || !ble.supportsHold) {
+                    Text("Для кнопок замера и авто-зажима обновите прошивку прибора")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
