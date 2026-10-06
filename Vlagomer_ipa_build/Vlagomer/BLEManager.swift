@@ -29,7 +29,7 @@ enum MoistureStatus: Int {
 }
 
 enum ConnectionState {
-    case bluetoothOff, scanning, connecting, connected
+    case bluetoothOff, scanning, connecting, connected, disconnected
 
     var title: String {
         switch self {
@@ -37,6 +37,7 @@ enum ConnectionState {
         case .scanning: return "Поиск влагомера…"
         case .connecting: return "Подключение…"
         case .connected: return "Подключено"
+        case .disconnected: return "Отключено"
         }
     }
 }
@@ -63,6 +64,7 @@ final class BLEManager: NSObject, ObservableObject {
     private var peripheral: CBPeripheral?
     private var woodChar: CBCharacteristic?
     private var cmdChar: CBCharacteristic?
+    private var userDisconnected = false   // отключили вручную — не подключаться автоматически
 
     var canMeasure: Bool { connection == .connected && supportsMeasure && !isMeasuring && !isHolding }
     var canHold: Bool { connection == .connected && supportsMeasure && supportsHold }
@@ -74,8 +76,29 @@ final class BLEManager: NSObject, ObservableObject {
 
     func startScan() {
         guard central.state == .poweredOn else { return }
+        userDisconnected = false
         connection = .scanning
         central.scanForPeripherals(withServices: [serviceUUID])
+    }
+
+    /// Отключиться от прибора вручную. Автоподключение выключается, пока не нажмёшь «Подключиться»
+    func disconnect() {
+        userDisconnected = true
+        central.stopScan()
+        if let p = peripheral { central.cancelPeripheralConnection(p) }
+        resetDeviceState()
+        connection = .disconnected
+    }
+
+    private func resetDeviceState() {
+        woodChar = nil
+        cmdChar = nil
+        supportsMeasure = false
+        supportsHold = false
+        isHolding = false
+        isMeasuring = false
+        hasResult = false
+        status = .idle
     }
 
     func selectWood(_ w: Wood) {
@@ -125,7 +148,11 @@ final class BLEManager: NSObject, ObservableObject {
 
 extension BLEManager: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn { startScan() } else { connection = .bluetoothOff }
+        if central.state == .poweredOn {
+            if !userDisconnected { startScan() }
+        } else {
+            connection = .bluetoothOff
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
@@ -142,21 +169,18 @@ extension BLEManager: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        woodChar = nil
-        cmdChar = nil
-        supportsMeasure = false
-        supportsHold = false
-        isHolding = false
-        isMeasuring = false
-        hasResult = false
-        status = .idle
+        resetDeviceState()
         self.peripheral = nil
-        startScan()
+        if userDisconnected {
+            connection = .disconnected
+        } else {
+            startScan()
+        }
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         self.peripheral = nil
-        startScan()
+        if !userDisconnected { startScan() }
     }
 }
 
